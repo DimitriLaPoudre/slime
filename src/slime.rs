@@ -86,6 +86,9 @@ impl SlimeCell {
             self.speed.x = a * (dx / dist) * dt;
             self.speed.y = a * (dy / dist) * dt;
         }
+
+        self.speed.x *= 0.95;
+        self.speed.y *= 0.95;
     }
 
     fn update(&mut self, anchor: Vector2D<f32>, dt: f32) {
@@ -132,7 +135,6 @@ impl Slime {
             }
         }
         Self {
-            // cells: vec![SlimeCell::new(anchor.x, anchor.y, cell_size); cell_nb],
             cells,
             anchor,
             pinch: None,
@@ -161,15 +163,24 @@ impl Slime {
     fn pinch_cell(&self) -> Option<&SlimeCell> {
         self.pinch.and_then(|i| self.cells.get(i))
     }
+
+    fn update_anchor(&mut self) {
+        let mut sum = Vector2D::new(0.0, 0.0);
+        for (i, cell) in self.cells.iter().enumerate() {
+            sum.x += (cell.pos.x - sum.x) / (i + 1) as f32;
+            sum.y += (cell.pos.y - sum.y) / (i + 1) as f32;
+        }
+        self.anchor = sum;
+    }
 }
 
 impl Inputable for Slime {
     fn handle_input(&mut self, input: Input) {
         if input.mouse.left {
             self.anchor = input.mouse.pos;
-            for cell in &mut self.cells {
-                cell.reset_speed();
-            }
+            // for cell in &mut self.cells {
+            //     cell.reset_speed();
+            // }
             // match self.pinch_cell() {
             //     Some(cell) => {}
             //     None => {
@@ -210,6 +221,8 @@ impl Updatable for Slime {
                 cell.resolve_collision(other);
             }
         }
+
+        self.update_anchor();
     }
 }
 

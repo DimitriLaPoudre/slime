@@ -47,9 +47,9 @@ impl Core {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, dt: f32) {
         for entity in &mut self.entities {
-            entity.update();
+            entity.update(dt);
         }
     }
 

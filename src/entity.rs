@@ -6,7 +6,7 @@ pub trait Inputable {
 }
 
 pub trait Updatable {
-    fn update(&mut self);
+    fn update(&mut self, dt: f32);
 }
 
 pub trait Drawable {

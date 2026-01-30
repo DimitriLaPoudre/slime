@@ -36,6 +36,54 @@ impl SlimeCell {
     //     self.speed.y = 0.0;
     // }
 
+    fn apply_gravity(&mut self, anchor: Vector2D<f32>, dt: f32) {
+        if !self.fix {
+            // simulate simple gravity
+            let dir = Vector2D {
+                x: anchor.x - self.pos.x,
+                y: anchor.y - self.pos.y,
+            };
+
+            let dist_sq: f32 = dir.x * dir.x + dir.y * dir.y;
+
+            let a = 1000.0;
+            if dist_sq != 0.0 {
+                let dist = dist_sq.sqrt();
+                let normale = Vector2D {
+                    x: dir.x / dist,
+                    y: dir.y / dist,
+                };
+                let velocity = Vector2D {
+                    x: normale.x * a,
+                    y: normale.y * a,
+                };
+                self.speed.x += velocity.x * dt;
+                self.speed.y += velocity.y * dt;
+            }
+
+            // let dx = anchor.x - self.pos.x;
+            // let dy = anchor.y - self.pos.y;
+            //
+            // let dist_sq = dx * dx + dy * dy;
+            // let dist = dist_sq.sqrt();
+            //
+            // let exponent: f32 = 2.1;
+            // let a = dist.powf(exponent); // a = dist ^ exponent
+            //
+            // if dist == 0.0 {
+            //     self.speed.x = a * 0.5 * dt;
+            //     self.speed.y = a * 0.5 * dt;
+            // } else {
+            //     self.speed.x = a * (dx / dist) * dt;
+            //     self.speed.y = a * (dy / dist) * dt;
+            // }
+        }
+
+        let damping = 0.98;
+        self.speed.x *= damping;
+        self.speed.y *= damping;
+    }
+
     fn resolve_collision(&mut self, other: &mut SlimeCell) {
         let dx = other.pos.x - self.pos.x;
         let dy = other.pos.y - self.pos.y;
@@ -81,30 +129,6 @@ impl SlimeCell {
             //     other.speed.y -= v2n * ny;
             // }
         }
-    }
-
-    fn apply_gravity(&mut self, anchor: Vector2D<f32>, dt: f32) {
-        if !self.fix {
-            let dx = anchor.x - self.pos.x;
-            let dy = anchor.y - self.pos.y;
-
-            let dist_sq = dx * dx + dy * dy;
-            let dist = dist_sq.sqrt();
-
-            let exponent: f32 = 2.1;
-            let a = dist.powf(exponent); // a = dist ^ exponent
-
-            if dist == 0.0 {
-                self.speed.x = a * 0.5 * dt;
-                self.speed.y = a * 0.5 * dt;
-            } else {
-                self.speed.x = a * (dx / dist) * dt;
-                self.speed.y = a * (dy / dist) * dt;
-            }
-        }
-
-        self.speed.x *= 0.95;
-        self.speed.y *= 0.95;
     }
 
     fn update(&mut self, anchor: Vector2D<f32>, dt: f32) {
@@ -291,12 +315,12 @@ impl Inputable for Slime {
 }
 
 impl Updatable for Slime {
-    fn update(&mut self) {
+    fn update(&mut self, dt: f32) {
         self.grid.clear();
-        self.anchor.update(self.anchor.pos, 1.0 / 120.0);
+        self.anchor.update(self.anchor.pos, dt);
         self.grid.push(0, self.anchor.pos, self.anchor.size);
         for (i, cell) in &mut self.cells.iter_mut().enumerate() {
-            cell.update(self.anchor.pos, 1.0 / 120.0);
+            cell.update(self.anchor.pos, dt);
             self.grid.push(i + 1, cell.pos, cell.size);
         }
         for i in 0..self.cells.len() {

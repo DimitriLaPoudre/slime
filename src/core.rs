@@ -8,14 +8,12 @@ pub struct Core {
     frame: Frame,
     window: Window,
     refresh: usize,
-    fps: usize,
-    next_frame: usize,
     input: Input,
     entities: Vec<Box<dyn Entity>>,
 }
 
 impl Core {
-    pub fn new(title: &str, width: usize, height: usize, refresh: usize, fps: usize) -> Self {
+    pub fn new(title: &str, width: usize, height: usize, refresh: usize) -> Self {
         let mut window = Window::new(title, width, height, WindowOptions::default())
             .expect("Frame::new(): Window::new failed");
 
@@ -25,8 +23,6 @@ impl Core {
             frame: Frame::new(width, height),
             window,
             refresh,
-            fps,
-            next_frame: 0,
             input: Input::default(),
             entities: vec![],
         }
@@ -61,14 +57,8 @@ impl Core {
     }
 
     pub fn next_frame(&mut self) {
-        if self.next_frame >= self.refresh / self.fps {
-            self.next_frame = 0;
-            self.window
-                .update_with_buffer(&self.frame.buffer, self.frame.width, self.frame.height)
-                .expect("Failed to update buffer");
-        } else {
-            self.next_frame += 1;
-            self.window.update();
-        }
+        self.window
+            .update_with_buffer(&self.frame.buffer, self.frame.width, self.frame.height)
+            .expect("Failed to update buffer");
     }
 }

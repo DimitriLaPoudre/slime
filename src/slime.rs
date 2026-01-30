@@ -79,7 +79,7 @@ impl SlimeCell {
             // }
         }
 
-        let damping = 0.98;
+        let damping = 0.95;
         self.speed.x *= damping;
         self.speed.y *= damping;
     }

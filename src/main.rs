@@ -15,8 +15,7 @@ use vector::Vector2D;
 const TITLE: &str = "slime";
 const WIDTH: usize = 800;
 const HEIGHT: usize = 600;
-const REFRESH: usize = 120;
-const FPS: usize = 60;
+const REFRESH: usize = 60;
 
 fn main() {
     let slime = Slime::new(
@@ -28,7 +27,7 @@ fn main() {
         9000,
         1.0,
     );
-    let mut core = Core::new(TITLE, WIDTH, HEIGHT, REFRESH, FPS);
+    let mut core = Core::new(TITLE, WIDTH, HEIGHT, REFRESH);
     core.add_entity(slime);
 
     let mut last = Instant::now();

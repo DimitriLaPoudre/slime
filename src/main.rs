@@ -24,7 +24,8 @@ fn main() {
             y: HEIGHT,
         },
         Vector2D::new(WIDTH as f32 / 2.0, HEIGHT as f32 / 2.0),
-        9000,
+        2500,
+        // 2,
         1.0,
     );
     let mut core = Core::new(TITLE, WIDTH, HEIGHT, REFRESH);

@@ -12,7 +12,7 @@ macro_rules! rgb {
 #[macro_export]
 macro_rules! dot {
     ($ax:expr, $ay:expr, $bx:expr, $by:expr) => {
-        ax * bx + ay * by
+        $ax * $bx + $ay * $by
     };
 }
 

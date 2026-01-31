@@ -8,12 +8,13 @@ use crate::{dot, rgb};
 const X_HASH: usize = 6287364878;
 const Y_HASH: usize = 2731859790;
 
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 struct SlimeCell {
     pos: Vector2D<f32>,
     speed: Vector2D<f32>,
     size: f32,
     fix: bool,
+    neighbour: Vec<(usize, f32)>,
 }
 
 impl SlimeCell {
@@ -23,18 +24,9 @@ impl SlimeCell {
             speed: Vector2D { x: 0.0, y: 0.0 },
             size,
             fix: false,
+            neighbour: Vec::new(),
         }
     }
-
-    fn with_fix(mut self) -> Self {
-        self.fix = true;
-        self
-    }
-
-    // fn reset_speed(&mut self) {
-    //     self.speed.x = 0.0;
-    //     self.speed.y = 0.0;
-    // }
 
     fn apply_gravity(&mut self, anchor: Vector2D<f32>, dt: f32) {
         if !self.fix {
@@ -67,90 +59,7 @@ impl SlimeCell {
         self.speed.y *= damping;
     }
 
-    fn resolve_collision(&mut self, other: &mut SlimeCell) {
-        if !self.fix {
-            let dir = Vector2D {
-                x: other.pos.x - self.pos.x,
-                y: other.pos.y - self.pos.y,
-            };
-
-            let dist_sq: f32 = dir.x * dir.x + dir.y * dir.y;
-            let dist = dist_sq.sqrt();
-
-            let collide_zone = self.size + other.size;
-            let overlap = collide_zone - dist;
-
-            if overlap <= 0.0 {
-                return;
-            }
-
-            // simulate simple gravity
-            let normale = if dist != 0.0 {
-                Vector2D {
-                    x: dir.x / dist,
-                    y: dir.y / dist,
-                }
-            } else {
-                Vector2D { x: 1.0, y: 1.0 }
-            };
-
-            let relative_speed = Vector2D {
-                x: other.speed.x - self.speed.x,
-                y: other.speed.y - self.speed.y,
-            };
-
-            let normale_relative_speed =
-                dot!(relative_speed.x, relative_speed.y, normale.x, normale.y);
-
-            if normale_relative_speed > 0.0 {
-                return;
-            }
-
-            if !other.fix {
-                let e = 0.5;
-
-                let k = (1.0 + e) * 0.5 * normale_relative_speed;
-
-                self.speed.x += k * normale.x;
-                self.speed.y += k * normale.y;
-
-                other.speed.x -= k * normale.x;
-                other.speed.y -= k * normale.y;
-            } else {
-                let e = 0.0;
-
-                let k = (1.0 + e) * 0.5 * normale_relative_speed;
-
-                self.speed.x += k * normale.x;
-                self.speed.y += k * normale.y;
-            }
-
-            // move cell to stop overlap
-            // let (nx, ny) = if dist == 0.0 {
-            //     (1.0, 1.0)
-            // } else {
-            //     (dir.x / dist, dir.y / dist)
-            // };
-            //
-            // if !other.fix {
-            //     let correction = overlap * 0.5;
-            //
-            //     self.pos.x -= nx * correction;
-            //     self.pos.y -= ny * correction;
-            //
-            //     other.pos.x += nx * correction;
-            //     other.pos.y += ny * correction;
-            // } else {
-            //     let correction = overlap;
-            //
-            //     self.pos.x -= nx * correction;
-            //     self.pos.y -= ny * correction;
-            // }
-        }
-    }
-
-    fn update(&mut self, anchor: Vector2D<f32>, dt: f32) {
-        self.apply_gravity(anchor, dt);
+    fn update(&mut self, dt: f32) {
         self.pos.x += self.speed.x * dt;
         self.pos.y += self.speed.y * dt;
     }
@@ -176,7 +85,6 @@ impl Drawable for SlimeCell {
 
 pub struct Slime {
     cells: Vec<SlimeCell>,
-    anchor: SlimeCell,
     // pinch: Option<usize>,
     grid: SpatialGrid,
 }
@@ -184,37 +92,43 @@ pub struct Slime {
 impl Slime {
     pub fn new(
         grid_size: Vector2D<usize>,
-        anchor: Vector2D<f32>,
-        mut cell_nb: usize,
+        center: Vector2D<f32>,
+        cell_radius: usize,
         cell_size: f32,
     ) -> Self {
         // create cell all around the anchor pos
-        cell_nb -= 1;
         let mut cells: Vec<SlimeCell> = Vec::new();
-        let radius = (cell_nb as f32).sqrt().ceil() / 2.0;
-        let mut cell_count = 0;
-        for y in (anchor.y - radius * cell_size) as usize..(anchor.y + radius * cell_size) as usize
-        {
-            for x in
-                (anchor.x - radius * cell_size) as usize..(anchor.x + radius * cell_size) as usize
-            {
-                if x == anchor.x.floor() as usize && y == anchor.y.floor() as usize {
-                    continue;
-                } else if cell_count < cell_nb {
-                    cells.push(SlimeCell::new(x as f32, y as f32, cell_size));
-                    cell_count += 1;
-                } else {
-                    break;
-                }
+        let origin = Vector2D {
+            x: center.x.floor() as isize - cell_radius as isize,
+            y: center.y.floor() as isize - cell_radius as isize,
+        };
+
+        for y in 0..(2 * cell_radius) {
+            for x in 0..(2 * cell_radius) {
+                cells.push(SlimeCell::new(
+                    (origin.x + x as isize) as f32,
+                    (origin.y + y as isize) as f32,
+                    cell_size,
+                ));
             }
-            if cell_count >= cell_nb {
-                break;
+        }
+
+        let cell_nb = cells.len();
+        for i in 0..cell_nb {
+            for j in (i + 1)..cell_nb {
+                let (left, right) = cells.split_at_mut(j);
+                let first = &mut left[i];
+                let second = &mut right[0];
+                let length = first.pos.distance(second.pos);
+                if length <= first.size + second.size {
+                    first.neighbour.push((j, length));
+                    println!("test {}, {}", i, j);
+                }
             }
         }
 
         Self {
             cells,
-            anchor: SlimeCell::new(anchor.x, anchor.y, cell_size).with_fix(),
             // pinch: None,
             grid: SpatialGrid::new(
                 grid_size.x * grid_size.y,
@@ -224,76 +138,6 @@ impl Slime {
                     y: Y_HASH,
                 },
             ),
-        }
-    }
-
-    fn valid_cell(&self, index: usize) -> bool {
-        if index == 0 {
-            true
-        } else {
-            if let Some(_) = self.cells.get(index - 1) {
-                true
-            } else {
-                false
-            }
-        }
-    }
-
-    fn get_two_cell(
-        &mut self,
-        mut index1: usize,
-        mut index2: usize,
-    ) -> Option<(&mut SlimeCell, &mut SlimeCell)> {
-        if index1 == index2 {
-            None
-        } else if index1 == 0 {
-            index2 -= 1;
-            if let Some(cell2) = self.cells.get_mut(index2) {
-                Some((&mut self.anchor, cell2))
-            } else {
-                None
-            }
-        } else if index2 == 0 {
-            index1 -= 1;
-            if let Some(cell1) = self.cells.get_mut(index1) {
-                Some((cell1, &mut self.anchor))
-            } else {
-                None
-            }
-        } else {
-            index1 -= 1;
-            index2 -= 1;
-            if index1 >= index2 {
-                let (left, right) = self.cells.split_at_mut(index1);
-
-                let cell1 = if let Some(cell1) = right.get_mut(0) {
-                    cell1
-                } else {
-                    return None;
-                };
-                let cell2 = if let Some(cell2) = left.get_mut(index2) {
-                    cell2
-                } else {
-                    return None;
-                };
-
-                Some((cell1, cell2))
-            } else {
-                let (left, right) = self.cells.split_at_mut(index2);
-
-                let cell1 = if let Some(cell1) = left.get_mut(index1) {
-                    cell1
-                } else {
-                    return None;
-                };
-                let cell2 = if let Some(cell2) = right.get_mut(0) {
-                    cell2
-                } else {
-                    return None;
-                };
-
-                Some((cell1, cell2))
-            }
         }
     }
 
@@ -316,11 +160,6 @@ impl Slime {
 impl Inputable for Slime {
     fn handle_input(&mut self, input: Input) {
         if input.mouse.left {
-            self.anchor.pos = Vector2D {
-                x: input.mouse.pos.x,
-                y: input.mouse.pos.y,
-            };
-
             // match self.pinch_cell() {
             //     Some(cell) => {}
             //     None => {
@@ -333,31 +172,7 @@ impl Inputable for Slime {
 }
 
 impl Updatable for Slime {
-    fn update(&mut self, dt: f32) {
-        self.grid.clear();
-        self.anchor.update(self.anchor.pos, dt);
-        self.grid.push(0, self.anchor.pos, self.anchor.size);
-        for (i, cell) in &mut self.cells.iter_mut().enumerate() {
-            cell.update(self.anchor.pos, dt);
-            self.grid.push(i + 1, cell.pos, cell.size);
-        }
-        for i in 0..self.cells.len() {
-            let collisions = self.grid.get(self.cells[i].pos, self.cells[i].size);
-            for collision in collisions {
-                if collision <= i + 1 && collision != 0 {
-                    continue;
-                }
-
-                if !self.valid_cell(collision) {
-                    continue;
-                }
-
-                let (cell, other) = self.get_two_cell(i + 1, collision).unwrap();
-
-                cell.resolve_collision(other);
-            }
-        }
-    }
+    fn update(&mut self, dt: f32) {}
 }
 
 impl Drawable for Slime {
@@ -365,7 +180,6 @@ impl Drawable for Slime {
         for cell in &self.cells {
             cell.draw(frame);
         }
-        self.anchor.draw(frame);
     }
 }
 

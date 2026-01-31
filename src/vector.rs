@@ -1,3 +1,5 @@
+use std::ops::{Add, Mul, Sub};
+
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Vector2D<T> {
     pub x: T,
@@ -12,15 +14,79 @@ impl<T> Vector2D<T> {
 
 impl<T> Vector2D<T>
 where
-    T: Copy + Into<f32>,
+    T: Copy + Add<Output = T>,
 {
-    pub fn distance(&self, other: Vector2D<T>) -> f32 {
-        let dir = Vector2D {
-            x: other.x.into() - self.x.into(),
-            y: other.y.into() - self.y.into(),
-        };
+    pub fn add(&self, other: Vector2D<T>) -> Vector2D<T> {
+        Vector2D {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
 
-        let dist_sq: f32 = dir.x * dir.x + dir.y * dir.y;
+    pub fn vadd(&self, value: T) -> Vector2D<T> {
+        Vector2D {
+            x: self.x + value,
+            y: self.y + value,
+        }
+    }
+}
+
+impl<T> Vector2D<T>
+where
+    T: Copy + Sub<Output = T>,
+{
+    pub fn sub(&self, other: Vector2D<T>) -> Vector2D<T> {
+        Vector2D {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+
+    pub fn vsub(&self, value: T) -> Vector2D<T> {
+        Vector2D {
+            x: self.x - value,
+            y: self.y - value,
+        }
+    }
+}
+
+impl<T> Vector2D<T>
+where
+    T: Copy + Mul<Output = T>,
+{
+    pub fn mul(&self, other: Vector2D<T>) -> Vector2D<T> {
+        Vector2D {
+            x: self.x * other.x,
+            y: self.y * other.y,
+        }
+    }
+
+    pub fn vmul(&self, value: T) -> Vector2D<T> {
+        Vector2D {
+            x: self.x * value,
+            y: self.y * value,
+        }
+    }
+}
+
+impl<T> Vector2D<T>
+where
+    T: Copy + Sub<Output = T>,
+{
+    pub fn delta(&self, other: Vector2D<T>) -> Vector2D<T> {
+        Vector2D {
+            x: other.x - self.x,
+            y: other.y - self.y,
+        }
+    }
+}
+
+impl<T> Vector2D<T>
+where
+    T: Copy + Into<f32> + Sub<Output = T>,
+{
+    pub fn length(&self) -> f32 {
+        let dist_sq: f32 = self.x.into() * self.x.into() + self.y.into() * self.y.into();
         dist_sq.sqrt()
     }
 }

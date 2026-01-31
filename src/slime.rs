@@ -1,9 +1,9 @@
 use crate::entity::{Drawable, Entity, Inputable, Updatable};
 use crate::frame::Frame;
 use crate::input::Input;
+use crate::rgb;
 use crate::spatial_grid::SpatialGrid;
 use crate::vector::Vector2D;
-use crate::{dot, rgb};
 
 const X_HASH: usize = 6287364878;
 const Y_HASH: usize = 2731859790;
@@ -14,7 +14,7 @@ struct SlimeCell {
     speed: Vector2D<f32>,
     size: f32,
     fix: bool,
-    neighbour: Vec<(usize, f32)>,
+    links: Vec<(usize, f32)>,
 }
 
 impl SlimeCell {
@@ -24,7 +24,7 @@ impl SlimeCell {
             speed: Vector2D { x: 0.0, y: 0.0 },
             size,
             fix: false,
-            neighbour: Vec::new(),
+            links: Vec::new(),
         }
     }
 
@@ -60,8 +60,10 @@ impl SlimeCell {
     }
 
     fn update(&mut self, dt: f32) {
-        self.pos.x += self.speed.x * dt;
-        self.pos.y += self.speed.y * dt;
+        if !self.fix {
+            self.pos.x += self.speed.x * dt;
+            self.pos.y += self.speed.y * dt;
+        }
     }
 }
 
@@ -85,7 +87,7 @@ impl Drawable for SlimeCell {
 
 pub struct Slime {
     cells: Vec<SlimeCell>,
-    // pinch: Option<usize>,
+    pinch: Option<usize>,
     grid: SpatialGrid,
 }
 
@@ -119,17 +121,16 @@ impl Slime {
                 let (left, right) = cells.split_at_mut(j);
                 let first = &mut left[i];
                 let second = &mut right[0];
-                let length = first.pos.distance(second.pos);
+                let length = first.pos.delta(second.pos).length();
                 if length <= first.size + second.size {
-                    first.neighbour.push((j, length));
-                    println!("test {}, {}", i, j);
+                    first.links.push((j, length));
                 }
             }
         }
 
         Self {
             cells,
-            // pinch: None,
+            pinch: None,
             grid: SpatialGrid::new(
                 grid_size.x * grid_size.y,
                 cell_size,
@@ -141,38 +142,86 @@ impl Slime {
         }
     }
 
-    // fn set_pinch(&mut self, i: Option<usize>) {
-    //     match i {
-    //         Some(n) => {
-    //             if n < self.cells.len() {
-    //                 self.pinch = Some(n);
-    //             }
-    //         }
-    //         None => self.pinch = None,
-    //     }
-    // }
-    //
-    // fn pinch_cell(&self) -> Option<&SlimeCell> {
-    //     self.pinch.and_then(|i| self.cells.get(i))
-    // }
+    fn set_pinch(&mut self, i: Option<usize>) {
+        match i {
+            Some(n) => {
+                if n < self.cells.len() {
+                    self.pinch = Some(n);
+                }
+            }
+            None => self.pinch = None,
+        }
+    }
+
+    fn pinch_cell(&mut self) -> Option<&mut SlimeCell> {
+        self.pinch.and_then(|i| self.cells.get_mut(i))
+    }
 }
 
 impl Inputable for Slime {
     fn handle_input(&mut self, input: Input) {
         if input.mouse.left {
-            // match self.pinch_cell() {
-            //     Some(cell) => {}
-            //     None => {
-            //         // self.set_pinch(Some(input.mouse.pos.0, input.mouse.pos.1));
-            //     }
-            // }
+            match self.pinch_cell() {
+                Some(cell) => cell.pos = input.mouse.pos,
+                None => {
+                    let list = self.grid.get(input.mouse.pos, 0.1);
+                    if list.len() > 0 {
+                        self.set_pinch(Some(list[0]));
+                    } else {
+                        self.set_pinch(None);
+                    };
+                }
+            }
         } else {
         }
     }
 }
 
 impl Updatable for Slime {
-    fn update(&mut self, dt: f32) {}
+    fn update(&mut self, dt: f32) {
+        for (id, cell) in self.cells.iter_mut().enumerate() {
+            cell.update(dt);
+            self.grid.push(id, cell.pos, cell.size);
+        }
+
+        let links: Vec<(usize, usize, f32)> = self
+            .cells
+            .iter()
+            .enumerate()
+            .flat_map(|(i, cell)| {
+                cell.links
+                    .iter()
+                    .map(move |(j, rest_length)| (i, *j, *rest_length))
+            })
+            .collect();
+
+        for (first, second, rest_length) in links {
+            let (a, b) = if first < second {
+                let (left, right) = self.cells.split_at_mut(second);
+                (&mut left[first], &mut right[0])
+            } else {
+                let (left, right) = self.cells.split_at_mut(first);
+                (&mut right[0], &mut left[second])
+            };
+
+            let delta = a.pos.delta(b.pos);
+            let dist = delta.length();
+
+            if dist == 0.0 {
+                continue;
+            }
+
+            let diff = (dist - rest_length) / dist;
+            let correction = delta.vmul(0.5 * diff);
+
+            if !a.fix {
+                a.pos = a.pos.add(correction);
+            }
+            if !b.fix {
+                b.pos = b.pos.sub(correction);
+            }
+        }
+    }
 }
 
 impl Drawable for Slime {

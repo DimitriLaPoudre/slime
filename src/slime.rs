@@ -126,26 +126,26 @@ impl SlimeCell {
             }
 
             // move cell to stop overlap
-            // let (nx, ny) = if dist == 0.0 {
-            //     (1.0, 1.0)
-            // } else {
-            //     (dir.x / dist, dir.y / dist)
-            // };
-            //
-            // if !other.fix {
-            //     let correction = overlap * 0.5;
-            //
-            //     self.pos.x -= nx * correction;
-            //     self.pos.y -= ny * correction;
-            //
-            //     other.pos.x += nx * correction;
-            //     other.pos.y += ny * correction;
-            // } else {
-            //     let correction = overlap;
-            //
-            //     self.pos.x -= nx * correction;
-            //     self.pos.y -= ny * correction;
-            // }
+            let (nx, ny) = if dist == 0.0 {
+                (1.0, 1.0)
+            } else {
+                (dir.x / dist, dir.y / dist)
+            };
+
+            if !other.fix {
+                let correction = overlap * 0.5;
+
+                self.pos.x -= nx * correction;
+                self.pos.y -= ny * correction;
+
+                other.pos.x += nx * correction;
+                other.pos.y += ny * correction;
+            } else {
+                let correction = overlap;
+
+                self.pos.x -= nx * correction;
+                self.pos.y -= ny * correction;
+            }
         }
     }
 

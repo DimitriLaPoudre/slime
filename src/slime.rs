@@ -90,7 +90,7 @@ pub struct Slime {
     pinch: Option<usize>,
     grid: SpatialGrid,
     recovery_speed: usize,
-    radius: usize,
+    radius: f32,
 }
 
 impl Slime {
@@ -98,9 +98,9 @@ impl Slime {
         grid_size: Vector2D<usize>,
         center: Vector2D<f32>,
         cell_size: f32,
-        rigidity: usize,
+        rigidity: f32,
         recovery_speed: usize,
-        radius: usize,
+        radius: f32,
     ) -> Self {
         let mut cells: Vec<SlimeCell> = Vec::new();
         let origin = Vector2D {
@@ -108,8 +108,8 @@ impl Slime {
             y: center.y.floor() as isize - radius as isize,
         };
 
-        for offset_y in 0..(2 * radius) {
-            for offset_x in 0..(2 * radius) {
+        for offset_y in 0..(2 * radius as usize) {
+            for offset_x in 0..(2 * radius as usize) {
                 let x = (origin.x + offset_x as isize) as f32;
                 let y = (origin.y + offset_y as isize) as f32;
                 let dx = x - center.x;
@@ -125,6 +125,18 @@ impl Slime {
             }
         }
 
+        let mut center = Vector2D::default();
+        for cell in &cells {
+            center = center.add(cell.pos);
+        }
+        center = center.vdiv(cells.len() as f32);
+
+        let mut avg_radius = 0.0;
+        for cell in &cells {
+            avg_radius += cell.pos.sub(center).length();
+        }
+        avg_radius /= cells.len() as f32;
+
         let cell_nb = cells.len();
         for i in 0..cell_nb {
             for j in (i + 1)..cell_nb {
@@ -132,7 +144,7 @@ impl Slime {
                 let first = &mut left[i];
                 let second = &mut right[0];
                 let length = first.pos.delta(second.pos).length();
-                if length <= (first.size * 2.0) * rigidity as f32 {
+                if length <= (first.size * 2.0) * rigidity {
                     first.links.push((j, length));
                 }
             }
@@ -150,7 +162,7 @@ impl Slime {
                 },
             ),
             recovery_speed,
-            radius,
+            radius: avg_radius,
         }
     }
 
@@ -197,13 +209,8 @@ impl Inputable for Slime {
     }
 }
 
-impl Updatable for Slime {
-    fn update(&mut self, dt: f32) {
-        for (id, cell) in self.cells.iter_mut().enumerate() {
-            cell.update(dt);
-            self.grid.push(id, cell.pos, cell.size);
-        }
-
+impl Slime {
+    fn solve_length_links(&mut self) {
         let links: Vec<(usize, usize, f32)> = self
             .cells
             .iter()
@@ -214,34 +221,67 @@ impl Updatable for Slime {
                     .map(move |(j, rest_length)| (i, *j, *rest_length))
             })
             .collect();
-        for _ in 0..self.recovery_speed {
-            for (first, second, rest_length) in &links {
-                let (first, second, rest_length) = (*first, *second, *rest_length);
-                let (a, b) = if first < second {
-                    let (left, right) = self.cells.split_at_mut(second);
-                    (&mut left[first], &mut right[0])
-                } else {
-                    let (left, right) = self.cells.split_at_mut(first);
-                    (&mut right[0], &mut left[second])
-                };
+        for (first, second, rest_length) in links {
+            let (a, b) = if first < second {
+                let (left, right) = self.cells.split_at_mut(second);
+                (&mut left[first], &mut right[0])
+            } else {
+                let (left, right) = self.cells.split_at_mut(first);
+                (&mut right[0], &mut left[second])
+            };
 
-                let delta = a.pos.delta(b.pos);
-                let dist = delta.length();
+            let delta = a.pos.delta(b.pos);
+            let dist = delta.length();
 
-                if dist == 0.0 {
-                    continue;
-                }
-
-                let diff = (dist - rest_length) / dist;
-                let correction = delta.vmul(0.5 * diff);
-
-                if !a.fix {
-                    a.pos = a.pos.add(correction);
-                }
-                if !b.fix {
-                    b.pos = b.pos.sub(correction);
-                }
+            if dist == 0.0 {
+                continue;
             }
+
+            let diff = (dist - rest_length) / dist;
+            let correction = delta.vmul(0.5 * diff);
+
+            if !a.fix {
+                a.pos = a.pos.add(correction);
+            }
+            if !b.fix {
+                b.pos = b.pos.sub(correction);
+            }
+        }
+    }
+
+    fn solve_area(&mut self) {
+        let mut center = Vector2D::default();
+        for cell in &self.cells {
+            center = center.add(cell.pos);
+        }
+        center = center.vdiv(self.cells.len() as f32);
+
+        let mut avg_radius = 0.0;
+        for cell in &self.cells {
+            avg_radius += cell.pos.sub(center).length();
+        }
+        avg_radius /= self.cells.len() as f32;
+
+        let compression = self.radius - avg_radius;
+        let stiffness = 0.2;
+
+        for cell in &mut self.cells {
+            let dir = cell.pos.sub(center).normalize();
+            cell.pos = cell.pos.add(dir.vmul(compression).vmul(stiffness));
+        }
+    }
+}
+
+impl Updatable for Slime {
+    fn update(&mut self, dt: f32) {
+        for (id, cell) in self.cells.iter_mut().enumerate() {
+            cell.update(dt);
+            self.grid.push(id, cell.pos, cell.size);
+        }
+
+        for _ in 0..self.recovery_speed {
+            self.solve_length_links();
+            self.solve_area();
         }
     }
 }

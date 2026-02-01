@@ -25,9 +25,9 @@ fn main() {
         },
         Vector2D::new(WIDTH as f32 / 2.0, HEIGHT as f32 / 2.0),
         0.5,
-        5,
-        5,
-        50,
+        3.0,
+        10,
+        25.0,
     );
     let mut core = Core::new(TITLE, WIDTH, HEIGHT, REFRESH);
     core.add_entity(slime);

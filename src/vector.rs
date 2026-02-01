@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Vector2D<T> {
@@ -71,6 +71,25 @@ where
 
 impl<T> Vector2D<T>
 where
+    T: Copy + Div<Output = T>,
+{
+    pub fn div(&self, other: Vector2D<T>) -> Vector2D<T> {
+        Vector2D {
+            x: self.x / other.x,
+            y: self.y / other.y,
+        }
+    }
+
+    pub fn vdiv(&self, value: T) -> Vector2D<T> {
+        Vector2D {
+            x: self.x / value,
+            y: self.y / value,
+        }
+    }
+}
+
+impl<T> Vector2D<T>
+where
     T: Copy + Sub<Output = T>,
 {
     pub fn delta(&self, other: Vector2D<T>) -> Vector2D<T> {
@@ -88,5 +107,18 @@ where
     pub fn length(&self) -> f32 {
         let dist_sq: f32 = self.x.into() * self.x.into() + self.y.into() * self.y.into();
         dist_sq.sqrt()
+    }
+}
+
+impl<T> Vector2D<T>
+where
+    T: Copy + Into<f32> + Sub<Output = T> + Div<Output = T>,
+{
+    pub fn normalize(&self) -> Vector2D<f32> {
+        let length = self.length();
+        Vector2D {
+            x: self.x.into() / length,
+            y: self.y.into() / length,
+        }
     }
 }

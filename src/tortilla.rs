@@ -9,7 +9,7 @@ const X_HASH: usize = 6287364878;
 const Y_HASH: usize = 2731859790;
 
 #[derive(Default, Clone, Debug)]
-struct SlimeCell {
+struct TortillaCell {
     pos: Vector2D<f32>,
     speed: Vector2D<f32>,
     size: f32,
@@ -17,7 +17,7 @@ struct SlimeCell {
     links: Vec<(usize, f32)>,
 }
 
-impl SlimeCell {
+impl TortillaCell {
     fn new(x: f32, y: f32, size: f32) -> Self {
         Self {
             pos: Vector2D::new(x, y),
@@ -67,33 +67,33 @@ impl SlimeCell {
     }
 }
 
-impl Drawable for SlimeCell {
+impl Drawable for TortillaCell {
     fn draw(&self, frame: &mut Frame) {
         if self.pos.x >= 0.0
             && self.pos.y >= 0.0
             && (self.pos.x as usize) < frame.width
             && (self.pos.y as usize) < frame.height
         {
-            if self.fix {
-                frame.buffer[self.pos.y as usize * frame.width + self.pos.x as usize] =
-                    rgb!(255, 0, 0);
-            } else {
-                frame.buffer[self.pos.y as usize * frame.width + self.pos.x as usize] =
-                    rgb!(0, 255, 0);
-            }
+            // if self.fix {
+            //     frame.buffer[self.pos.y as usize * frame.width + self.pos.x as usize] =
+            //         rgb!(255, 0, 0);
+            // } else {
+            frame.buffer[self.pos.y as usize * frame.width + self.pos.x as usize] =
+                rgb!(190, 190, 150);
+            // }
         }
     }
 }
 
-pub struct Slime {
-    cells: Vec<SlimeCell>,
+pub struct Tortilla {
+    cells: Vec<TortillaCell>,
     pinch: Option<usize>,
     grid: SpatialGrid,
     recovery_speed: usize,
     radius: f32,
 }
 
-impl Slime {
+impl Tortilla {
     pub fn new(
         grid_size: Vector2D<usize>,
         center: Vector2D<f32>,
@@ -102,7 +102,7 @@ impl Slime {
         recovery_speed: usize,
         radius: f32,
     ) -> Self {
-        let mut cells: Vec<SlimeCell> = Vec::new();
+        let mut cells: Vec<TortillaCell> = Vec::new();
         let origin = Vector2D {
             x: center.x.floor() as isize - radius as isize,
             y: center.y.floor() as isize - radius as isize,
@@ -116,7 +116,7 @@ impl Slime {
                 let dy = y - center.y;
 
                 if dx * dx + dy * dy <= radius as f32 * radius as f32 {
-                    cells.push(SlimeCell::new(
+                    cells.push(TortillaCell::new(
                         (origin.x + offset_x as isize) as f32,
                         (origin.y + offset_y as isize) as f32,
                         cell_size,
@@ -181,12 +181,12 @@ impl Slime {
         }
     }
 
-    fn pinch_cell(&mut self) -> Option<&mut SlimeCell> {
+    fn pinch_cell(&mut self) -> Option<&mut TortillaCell> {
         self.pinch.and_then(|i| self.cells.get_mut(i))
     }
 }
 
-impl Inputable for Slime {
+impl Inputable for Tortilla {
     fn handle_input(&mut self, input: Input) {
         if input.mouse.left {
             match self.pinch_cell() {
@@ -209,7 +209,7 @@ impl Inputable for Slime {
     }
 }
 
-impl Slime {
+impl Tortilla {
     fn solve_length_links(&mut self) {
         let links: Vec<(usize, usize, f32)> = self
             .cells
@@ -272,7 +272,7 @@ impl Slime {
     }
 }
 
-impl Updatable for Slime {
+impl Updatable for Tortilla {
     fn update(&mut self, dt: f32) {
         for (id, cell) in self.cells.iter_mut().enumerate() {
             cell.update(dt);
@@ -286,7 +286,7 @@ impl Updatable for Slime {
     }
 }
 
-impl Drawable for Slime {
+impl Drawable for Tortilla {
     fn draw(&self, frame: &mut Frame) {
         for cell in &self.cells {
             cell.draw(frame);
@@ -294,4 +294,4 @@ impl Drawable for Slime {
     }
 }
 
-impl Entity for Slime {}
+impl Entity for Tortilla {}

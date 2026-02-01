@@ -31,19 +31,19 @@ fn main() {
         10,
         20.0,
     );
-    // let particle_system = ParticleSystem::new(
-    //     Vector2D {
-    //         x: WIDTH,
-    //         y: HEIGHT,
-    //     },
-    //     Vector2D::new(600.0, 300.0),
-    //     6400,
-    //     0.5,
-    // );
+    let particle_system = ParticleSystem::new(
+        Vector2D {
+            x: WIDTH,
+            y: HEIGHT,
+        },
+        Vector2D::new(600.0, 300.0),
+        6400,
+        0.5,
+    );
 
     let mut core = Core::new(TITLE, WIDTH, HEIGHT, REFRESH);
     core.add_entity(tortilla);
-    // core.add_entity(particle_system);
+    core.add_entity(particle_system);
 
     let mut last = Instant::now();
     while core.is_open() {

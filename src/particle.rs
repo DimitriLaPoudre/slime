@@ -9,14 +9,14 @@ const X_HASH: usize = 6287364878;
 const Y_HASH: usize = 2731859790;
 
 #[derive(Default, Copy, Clone, Debug)]
-struct SlimeCell {
+struct Particle {
     pos: Vector2D<f32>,
     speed: Vector2D<f32>,
     size: f32,
     fix: bool,
 }
 
-impl SlimeCell {
+impl Particle {
     fn new(x: f32, y: f32, size: f32) -> Self {
         Self {
             pos: Vector2D::new(x, y),
@@ -67,7 +67,7 @@ impl SlimeCell {
         self.speed.y *= damping;
     }
 
-    fn resolve_collision(&mut self, other: &mut SlimeCell) {
+    fn resolve_collision(&mut self, other: &mut Particle) {
         if !self.fix {
             let dir = Vector2D {
                 x: other.pos.x - self.pos.x,
@@ -156,7 +156,7 @@ impl SlimeCell {
     }
 }
 
-impl Drawable for SlimeCell {
+impl Drawable for Particle {
     fn draw(&self, frame: &mut Frame) {
         if self.pos.x >= 0.0
             && self.pos.y >= 0.0
@@ -174,14 +174,14 @@ impl Drawable for SlimeCell {
     }
 }
 
-pub struct Slime {
-    cells: Vec<SlimeCell>,
-    anchor: SlimeCell,
+pub struct ParticleSystem {
+    cells: Vec<Particle>,
+    anchor: Particle,
     // pinch: Option<usize>,
     grid: SpatialGrid,
 }
 
-impl Slime {
+impl ParticleSystem {
     pub fn new(
         grid_size: Vector2D<usize>,
         anchor: Vector2D<f32>,
@@ -190,7 +190,7 @@ impl Slime {
     ) -> Self {
         // create cell all around the anchor pos
         cell_nb -= 1;
-        let mut cells: Vec<SlimeCell> = Vec::new();
+        let mut cells: Vec<Particle> = Vec::new();
         let radius = (cell_nb as f32).sqrt().ceil() / 2.0;
         let mut cell_count = 0;
         for y in (anchor.y - radius * cell_size) as usize..(anchor.y + radius * cell_size) as usize
@@ -201,7 +201,7 @@ impl Slime {
                 if x == anchor.x.floor() as usize && y == anchor.y.floor() as usize {
                     continue;
                 } else if cell_count < cell_nb {
-                    cells.push(SlimeCell::new(x as f32, y as f32, cell_size));
+                    cells.push(Particle::new(x as f32, y as f32, cell_size));
                     cell_count += 1;
                 } else {
                     break;
@@ -214,7 +214,7 @@ impl Slime {
 
         Self {
             cells,
-            anchor: SlimeCell::new(anchor.x, anchor.y, cell_size).with_fix(),
+            anchor: Particle::new(anchor.x, anchor.y, cell_size).with_fix(),
             // pinch: None,
             grid: SpatialGrid::new(
                 grid_size.x * grid_size.y,
@@ -243,7 +243,7 @@ impl Slime {
         &mut self,
         mut index1: usize,
         mut index2: usize,
-    ) -> Option<(&mut SlimeCell, &mut SlimeCell)> {
+    ) -> Option<(&mut Particle, &mut Particle)> {
         if index1 == index2 {
             None
         } else if index1 == 0 {
@@ -308,12 +308,12 @@ impl Slime {
     //     }
     // }
     //
-    // fn pinch_cell(&self) -> Option<&SlimeCell> {
+    // fn pinch_cell(&self) -> Option<&Particle> {
     //     self.pinch.and_then(|i| self.cells.get(i))
     // }
 }
 
-impl Inputable for Slime {
+impl Inputable for ParticleSystem {
     fn handle_input(&mut self, input: Input) {
         if input.mouse.left {
             self.anchor.pos = Vector2D {
@@ -332,7 +332,7 @@ impl Inputable for Slime {
     }
 }
 
-impl Updatable for Slime {
+impl Updatable for ParticleSystem {
     fn update(&mut self, dt: f32) {
         self.grid.clear();
         self.anchor.update(self.anchor.pos, dt);
@@ -360,7 +360,7 @@ impl Updatable for Slime {
     }
 }
 
-impl Drawable for Slime {
+impl Drawable for ParticleSystem {
     fn draw(&self, frame: &mut Frame) {
         for cell in &self.cells {
             cell.draw(frame);
@@ -369,4 +369,4 @@ impl Drawable for Slime {
     }
 }
 
-impl Entity for Slime {}
+impl Entity for ParticleSystem {}

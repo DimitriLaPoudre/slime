@@ -3,12 +3,12 @@ mod entity;
 mod frame;
 mod input;
 mod macros;
-mod slime;
+mod particle;
 mod spatial_grid;
 mod vector;
 
 use core::Core;
-use slime::Slime;
+use particle::ParticleSystem;
 use std::time::Instant;
 use vector::Vector2D;
 
@@ -18,18 +18,17 @@ const HEIGHT: usize = 600;
 const REFRESH: usize = 60;
 
 fn main() {
-    let slime = Slime::new(
+    let particle_system = ParticleSystem::new(
         Vector2D {
             x: WIDTH,
             y: HEIGHT,
         },
         Vector2D::new(WIDTH as f32 / 2.0, HEIGHT as f32 / 2.0),
-        25000,
-        // 2,
+        10000,
         0.5,
     );
     let mut core = Core::new(TITLE, WIDTH, HEIGHT, REFRESH);
-    core.add_entity(slime);
+    core.add_entity(particle_system);
 
     let mut last = Instant::now();
     while core.is_open() {

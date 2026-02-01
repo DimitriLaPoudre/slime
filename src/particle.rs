@@ -168,7 +168,7 @@ impl Drawable for Particle {
                     rgb!(255, 0, 0);
             } else {
                 frame.buffer[self.pos.y as usize * frame.width + self.pos.x as usize] =
-                    rgb!(0, 255, 0);
+                    rgb!(255, 255, 0);
             }
         }
     }
@@ -315,7 +315,7 @@ impl ParticleSystem {
 
 impl Inputable for ParticleSystem {
     fn handle_input(&mut self, input: Input) {
-        if input.mouse.left {
+        if input.mouse.right {
             self.anchor.pos = Vector2D {
                 x: input.mouse.pos.x,
                 y: input.mouse.pos.y,

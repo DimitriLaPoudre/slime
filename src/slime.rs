@@ -89,29 +89,39 @@ pub struct Slime {
     cells: Vec<SlimeCell>,
     pinch: Option<usize>,
     grid: SpatialGrid,
+    recovery_speed: usize,
+    radius: usize,
 }
 
 impl Slime {
     pub fn new(
         grid_size: Vector2D<usize>,
         center: Vector2D<f32>,
-        cell_radius: usize,
         cell_size: f32,
+        rigidity: usize,
+        recovery_speed: usize,
+        radius: usize,
     ) -> Self {
-        // create cell all around the anchor pos
         let mut cells: Vec<SlimeCell> = Vec::new();
         let origin = Vector2D {
-            x: center.x.floor() as isize - cell_radius as isize,
-            y: center.y.floor() as isize - cell_radius as isize,
+            x: center.x.floor() as isize - radius as isize,
+            y: center.y.floor() as isize - radius as isize,
         };
 
-        for y in 0..(2 * cell_radius) {
-            for x in 0..(2 * cell_radius) {
-                cells.push(SlimeCell::new(
-                    (origin.x + x as isize) as f32,
-                    (origin.y + y as isize) as f32,
-                    cell_size,
-                ));
+        for offset_y in 0..(2 * radius) {
+            for offset_x in 0..(2 * radius) {
+                let x = (origin.x + offset_x as isize) as f32;
+                let y = (origin.y + offset_y as isize) as f32;
+                let dx = x - center.x;
+                let dy = y - center.y;
+
+                if dx * dx + dy * dy <= radius as f32 * radius as f32 {
+                    cells.push(SlimeCell::new(
+                        (origin.x + offset_x as isize) as f32,
+                        (origin.y + offset_y as isize) as f32,
+                        cell_size,
+                    ));
+                }
             }
         }
 
@@ -122,7 +132,7 @@ impl Slime {
                 let first = &mut left[i];
                 let second = &mut right[0];
                 let length = first.pos.delta(second.pos).length();
-                if length <= first.size + second.size {
+                if length <= (first.size * 2.0) * rigidity as f32 {
                     first.links.push((j, length));
                 }
             }
@@ -139,14 +149,20 @@ impl Slime {
                     y: Y_HASH,
                 },
             ),
+            recovery_speed,
+            radius,
         }
     }
 
     fn set_pinch(&mut self, i: Option<usize>) {
+        if let Some(n) = self.pinch {
+            self.cells[n].fix = false;
+        }
         match i {
             Some(n) => {
                 if n < self.cells.len() {
                     self.pinch = Some(n);
+                    self.cells[n].fix = true;
                 }
             }
             None => self.pinch = None,
@@ -165,14 +181,18 @@ impl Inputable for Slime {
                 Some(cell) => cell.pos = input.mouse.pos,
                 None => {
                     let list = self.grid.get(input.mouse.pos, 0.1);
-                    if list.len() > 0 {
-                        self.set_pinch(Some(list[0]));
-                    } else {
-                        self.set_pinch(None);
-                    };
+                    self.set_pinch(None);
+                    for id in list {
+                        let cell = &self.cells[id];
+                        if cell.pos.delta(input.mouse.pos).length() < cell.size {
+                            self.set_pinch(Some(id));
+                            break;
+                        }
+                    }
                 }
             }
         } else {
+            self.set_pinch(None);
         }
     }
 }
@@ -194,31 +214,33 @@ impl Updatable for Slime {
                     .map(move |(j, rest_length)| (i, *j, *rest_length))
             })
             .collect();
+        for _ in 0..self.recovery_speed {
+            for (first, second, rest_length) in &links {
+                let (first, second, rest_length) = (*first, *second, *rest_length);
+                let (a, b) = if first < second {
+                    let (left, right) = self.cells.split_at_mut(second);
+                    (&mut left[first], &mut right[0])
+                } else {
+                    let (left, right) = self.cells.split_at_mut(first);
+                    (&mut right[0], &mut left[second])
+                };
 
-        for (first, second, rest_length) in links {
-            let (a, b) = if first < second {
-                let (left, right) = self.cells.split_at_mut(second);
-                (&mut left[first], &mut right[0])
-            } else {
-                let (left, right) = self.cells.split_at_mut(first);
-                (&mut right[0], &mut left[second])
-            };
+                let delta = a.pos.delta(b.pos);
+                let dist = delta.length();
 
-            let delta = a.pos.delta(b.pos);
-            let dist = delta.length();
+                if dist == 0.0 {
+                    continue;
+                }
 
-            if dist == 0.0 {
-                continue;
-            }
+                let diff = (dist - rest_length) / dist;
+                let correction = delta.vmul(0.5 * diff);
 
-            let diff = (dist - rest_length) / dist;
-            let correction = delta.vmul(0.5 * diff);
-
-            if !a.fix {
-                a.pos = a.pos.add(correction);
-            }
-            if !b.fix {
-                b.pos = b.pos.sub(correction);
+                if !a.fix {
+                    a.pos = a.pos.add(correction);
+                }
+                if !b.fix {
+                    b.pos = b.pos.sub(correction);
+                }
             }
         }
     }
